@@ -3,7 +3,7 @@
 set -e
 
 SCRIPT_NAME="bili-term"
-REPO_URL="https://github.com/akirco/bili-term"
+BIN_URL="https://raw.githubusercontent.com/akirco/bili-term/refs/heads/main/bili.sh"
 INSTALL_DIR="${HOME}/.local/bin"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/bili-term"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/bili-term"
@@ -98,7 +98,7 @@ if [ -f "$SCRIPT_PATH" ]; then
     chmod +x "$INSTALL_DIR/bili"
     echo -e "  ${GREEN}✓${NC} 已安装到 $INSTALL_DIR/bili"
 else
-    curl -sL "$REPO_URL/raw/master/bili.sh" -o "$INSTALL_DIR/bili"
+    curl -sL "$BIN_URL" -o "$INSTALL_DIR/bili"
     chmod +x "$INSTALL_DIR/bili"
     echo -e "  ${GREEN}✓${NC} 已从 GitHub 安装到 $INSTALL_DIR/bili"
 fi

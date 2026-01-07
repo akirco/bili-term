@@ -9,17 +9,7 @@
 
 ## 预览
 
-```
-╔══════════════════════════════════════════╗
-║           Bili-Term v2.0.0               ║
-║      终端中的 Bilibili 客户端            ║
-╚══════════════════════════════════════════╝
-
-  推荐视频    热门视频    搜索视频
-  搜索UP主    个人推荐    历史记录
-  稍后观看    配置管理    扫码登录
-  关于帮助    退出程序
-```
+![](./screenshot.png)
 
 ## 功能特性
 
@@ -49,7 +39,7 @@
 
 ```bash
 
-curl -sSfL "https://github.com/akirco/bili-term/raw/master/install.sh" | bash
+curl -sSfL "https://raw.githubusercontent.com/akirco/bili-term/refs/heads/main/install.sh" | bash
 
 #or
 
