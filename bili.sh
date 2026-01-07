@@ -55,7 +55,7 @@ PREVIEW_WIDTH=50%
 PREVIEW_HEIGHT=20
 SHOW_STATISTICS=true
 COLOR_SCHEME=\"default\"
-FZF_COLOR=\"bg+:#1e1e2e,bg:#1a1b26,fg:#c0caf5,hl:#bb9af7,fg+:#c0caf5,hl+:#bb9af7,info:#7dcfff,prompt:#7aa2f7,pointer:#bb9af7,marker:#bb9af7,spinner:#7dcfff,header:#bb9af7\"
+FZF_COLOR=\"bg+:#101115,bg:#0E1011,fg:#c0caf5,hl:#bb9af7,fg+:#c0caf5,hl+:#bb9af7,info:#7dcfff,prompt:#7aa2f7,pointer:#bb9af7,marker:#bb9af7,spinner:#7dcfff,header:#bb9af7\"
 
 # 缓存设置
 CACHE_DURATION=3600  # 缓存时间（秒）
@@ -116,7 +116,7 @@ load_config() {
     mkdir -p "$CACHE_BASE_DIR"
 
     if [ -z "$FZF_COLOR" ]; then
-        FZF_COLOR="bg+:#1e1e2e,bg:#1a1b26,fg:#c0caf5,hl:#bb9af7,fg+:#c0caf5,hl+:#bb9af7,info:#7dcfff,prompt:#7aa2f7,pointer:#bb9af7,marker:#bb9af7,spinner:#7dcfff,header:#bb9af7"
+        FZF_COLOR="bg+:#101115,bg:#0E1011,fg:#c0caf5,hl:#bb9af7,fg+:#c0caf5,hl+:#bb9af7,info:#7dcfff,prompt:#7aa2f7,pointer:#bb9af7,marker:#bb9af7,spinner:#7dcfff,header:#bb9af7"
     fi
 }
 
@@ -131,8 +131,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[1;34m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-ORANGE='\033[0;33m'
-MAGENTA='\033[1;35m'
+# ORANGE='\033[0;33m'
+# MAGENTA='\033[1;35m'
 NC='\033[0m'
 
 
@@ -1022,7 +1022,7 @@ show_settings() {
                 ;;
             *重置配置文件*)
                 echo -e "${RED}确认重置配置文件？(y/N):${NC}"
-                read -nr 1 confirm
+                read -n 1 confirm
                 echo
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
                     rm -f "$CONFIG_FILE"
@@ -1033,7 +1033,7 @@ show_settings() {
                 ;;
             *清除缓存文件*)
                 echo -e "${YELLOW}确认清除所有缓存？(y/N):${NC}"
-                read -nr 1 confirm
+                read -n 1 confirm
                 echo
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
                     rm -rf "$CACHE_BASE_DIR"/*
