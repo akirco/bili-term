@@ -2,7 +2,7 @@
 
 # set -Eeo pipefail
 # IFS=$'\n\t'
-set -e
+# set -e
 
 
 # ================= Bili-Term - B站终端客户端 =================

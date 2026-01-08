@@ -104,10 +104,10 @@ else
 fi
 
 echo ""
-if [ -f "$CONFIG_DIR/config.conf" ]; then
+if [ -f "$CONFIG_DIR/config" ]; then
     echo -e "${GREEN}配置文件已存在，跳过创建${NC}"
 else
-    cat > "$CONFIG_DIR/config.conf" << 'EOF'
+    cat > "$CONFIG_DIR/config" << 'EOF'
 # Bili-Term 配置文件
 # 按需修改以下配置项
 
@@ -140,7 +140,7 @@ KEY_DOWNLOAD="ctrl-d"
 KEY_REFRESH="ctrl-r"
 KEY_WATCHLATER="ctrl-w"
 EOF
-    echo -e "  ${GREEN}✓${NC} 配置文件: $CONFIG_DIR/config.conf"
+    echo -e "  ${GREEN}✓${NC} 配置文件: $CONFIG_DIR/config"
 fi
 
 echo ""
