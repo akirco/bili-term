@@ -54,7 +54,7 @@ cd bili-term
 # 1. 安装依赖
 
 # Arch
-sudo pacman -S curl jq fzf chafa yt-dlp
+sudo pacman -S curl jq fzf chafa yt-dlp mpv
 
 # 3. 安装脚本
 mkdir -p ~/.local/bin
@@ -80,7 +80,6 @@ bili
 | -------- | ------------ |
 | `Enter`  | 选择功能     |
 | `Ctrl+R` | 刷新登录状态 |
-| `Ctrl+W` | 稍后观看列表 |
 
 ### 视频列表
 
@@ -96,7 +95,7 @@ bili
 
 ## 配置
 
-配置文件位置：`~/.config/bili-term/config.conf`
+配置文件位置：`~/.config/bili-term/config`
 
 ```bash
 # 播放器设置
