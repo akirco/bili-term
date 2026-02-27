@@ -55,7 +55,7 @@ PREVIEW_WIDTH=50%
 PREVIEW_HEIGHT=20
 SHOW_STATISTICS=true
 COLOR_SCHEME=\"default\"
-FZF_COLOR=\"bg+:#101115,bg:#0E1011,fg:#c0caf5,hl:#bb9af7,fg+:#c0caf5,hl+:#bb9af7,info:#7dcfff,prompt:#7aa2f7,pointer:#bb9af7,marker:#bb9af7,spinner:#7dcfff,header:#bb9af7\"
+FZF_COLOR=\"bg+:#101115,bg:#0E1011,border:#191e2b,fg:#c0caf5,hl:#bb9af7,fg+:#c0caf5,hl+:#bb9af7,info:#7dcfff,prompt:#7aa2f7,pointer:#bb9af7,marker:#bb9af7,spinner:#7dcfff,header:#bb9af7\"
 
 # 缓存设置
 CACHE_DURATION=3600  # 缓存时间（秒）
@@ -94,7 +94,8 @@ load_config() {
     fi
 
     if [ -f "$CONFIG_FILE" ]; then
-      if ! source "$CONFIG_FILE" 2>/dev/null; then
+    # shellcheck source=/dev/null
+    if ! source "$CONFIG_FILE" 2>/dev/null; then
         echo -e "${RED}配置文件语法错误，使用默认配置${NC}"
       fi
     fi
@@ -116,7 +117,7 @@ load_config() {
     mkdir -p "$CACHE_BASE_DIR"
 
     if [ -z "$FZF_COLOR" ]; then
-        FZF_COLOR="bg+:#101115,bg:#0E1011,fg:#c0caf5,hl:#bb9af7,fg+:#c0caf5,hl+:#bb9af7,info:#7dcfff,prompt:#7aa2f7,pointer:#bb9af7,marker:#bb9af7,spinner:#7dcfff,header:#bb9af7"
+        FZF_COLOR="bg+:#101115,border:#191e2b,bg:#0E1011,fg:#c0caf5,hl:#bb9af7,fg+:#c0caf5,hl+:#bb9af7,info:#7dcfff,prompt:#7aa2f7,pointer:#bb9af7,marker:#bb9af7,spinner:#7dcfff,header:#bb9af7"
     fi
 }
 
@@ -264,8 +265,8 @@ startup(){
     left_padding=$(( (term_width - art_width) / 2 ))
     top_padding=$(( (term_height - art_height) / 2 ))
 
-    padding=$(printf "%*s" "$left_padding")
-    vpadding=$(printf "%*s" "$top_padding")
+    padding=$(printf "%*s" "$left_padding" "")
+    vpadding=$(printf "%*s" "$top_padding" "")
 
     # 顶部占位
     echo "$vpadding"
@@ -347,9 +348,9 @@ show_qr() {
 
 # API URL常量
 # API_VIDEO_DETAIL="https://api.bilibili.com/x/web-interface/view"
-API_UP_DETAIL="https://api.bilibili.com/x/space/acc/info"
-API_UP_VIDEOS="https://api.bilibili.com/x/space/arc/search"
-API_UP_SEARCH="https://api.bilibili.com/x/web-interface/search/type"
+# API_UP_DETAIL="https://api.bilibili.com/x/space/acc/info"
+# API_UP_VIDEOS="https://api.bilibili.com/x/space/arc/search"
+# API_UP_SEARCH="https://api.bilibili.com/x/web-interface/search/type"
 API_RECOMMEND="https://api.bilibili.com/x/web-interface/index/top/feed/rcmd"
 API_POPULAR="https://api.bilibili.com/x/web-interface/popular"
 API_VIDEO_SEARCH="https://api.bilibili.com/x/web-interface/search/all/v2"
@@ -443,8 +444,12 @@ jqx_watchlater() {
 
 jqerr() {
     local res="$1"
-    local code=$(echo "$res" | jq -r '.code // -1')
-    local message=$(echo "$res" | jq -r '.message // "未知错误"')
+    local code
+    code=$(echo "$res" | jq -r '.code // -1')
+
+    local message
+    message=$(echo "$res" | jq -r '.message // "未知错误"')
+
     if [ "$code" != "0" ]; then
         echo "ERROR:$message"
         return 1
@@ -456,7 +461,8 @@ jqerr() {
 
 fetch_recommend() {
     local page_size="${RECOMMEND_PAGE_SIZE:-20}"
-    local res=$(curl_bili "${API_RECOMMEND}?ps=${page_size}")
+    local res
+    res=$(curl_bili "${API_RECOMMEND}?ps=${page_size}")
     echo "$res" | jq empty 2>/dev/null || return 1
     jqx_recommend "$res"
 }
@@ -465,7 +471,8 @@ fetch_recommend() {
 
 fetch_popular() {
     local page_size="${POPULAR_PAGE_SIZE:-20}"
-    local res=$(curl_bili "${API_POPULAR}?ps=${page_size}")
+    local res
+    res=$(curl_bili "${API_POPULAR}?ps=${page_size}")
     echo "$res" | jq empty 2>/dev/null || return 1
     jqx_popular "$res"
 }
@@ -473,10 +480,12 @@ fetch_popular() {
 # ----------------------------------- 搜索视频 ----------------------------------- #
 
 fetch_videos() {
-    local keyword=$(urlencode "$1")
+    local keyword
+    local res
+    keyword=$(urlencode "$1")
     local page_size="${SEARCH_PAGE_SIZE:-20}"
 
-    local res=$(curl_bili "${API_VIDEO_SEARCH}?keyword=${keyword}&page=1&page_size=${page_size}")
+    res=$(curl_bili "${API_VIDEO_SEARCH}?keyword=${keyword}&page=1&page_size=${page_size}")
     echo "${res}" > "search.json"
     echo "$res" | jq empty 2>/dev/null || return 1
     jqx_videos "$res"
@@ -486,7 +495,8 @@ fetch_videos() {
 
 fetch_personal_recommend() {
     local page_size="${PERSONAL_PAGE_SIZE:-20}"
-    local res=$(curl_bili "${API_RECOMMEND}?ps=${page_size}")
+    local res
+    res=$(curl_bili "${API_RECOMMEND}?ps=${page_size}")
     echo "$res" | jq empty 2>/dev/null || return 1
     jqx_personal_recommend "$res"
 }
@@ -494,7 +504,8 @@ fetch_personal_recommend() {
 # --------------------------------- 获取观看历史列表 --------------------------------- #
 
 fetch_history() {
-    local res=$(curl_bili "${API_HISTORY}?ps=20")
+    local res
+    res=$(curl_bili "${API_HISTORY}?ps=20")
     echo "$res" | jq empty 2>/dev/null || { echo -e "${RED}获取历史记录失败${NC}"; return 1; }
     jqx_history "$res"
 }
@@ -502,7 +513,8 @@ fetch_history() {
 
 # --------------------------------- 获取稍后观看列表 --------------------------------- #
 fetch_watchlater() {
-    local res=$(curl_bili "${API_WATCHLATER}")
+    local res
+    res=$(curl_bili "${API_WATCHLATER}")
     echo "$res" | jq empty 2>/dev/null || { echo -e "${RED}获取稍后观看失败${NC}"; return 1; }
     jqx_watchlater "$res"
 }
@@ -510,6 +522,10 @@ fetch_watchlater() {
 # --------------------------------- 添加到稍后观看 --------------------------------- #
 add_to_watchlater() {
     local bvid="$1"
+    local csrf
+    local res
+    local code
+    local msg
     if [ -z "$bvid" ]; then
         echo -e "${RED}缺少视频BV号${NC}"
         return 1
@@ -520,23 +536,23 @@ add_to_watchlater() {
         return 1
     fi
 
-    local csrf=$(grep "bili_jct" "$COOKIE_FILE" | awk '{print $7}' | head -1)
+    csrf=$(grep "bili_jct" "$COOKIE_FILE" | awk '{print $7}' | head -1)
     if [ -z "$csrf" ]; then
         csrf=$(grep "bili_jct" "$COOKIE_FILE" | cut -f5 | head -1)
     fi
 
-    local res=$(curl -s -X POST \
+    res=$(curl -s -X POST \
         -b "$COOKIE_FILE" -c "$COOKIE_FILE" \
         -H "User-Agent: $USER_AGENT" \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "bvid=${bvid}&csrf=${csrf}" \
         "https://api.bilibili.com/x/v2/history/toview/add")
-    local code=$(echo "$res" | jq -r '.code // -1')
+    code=$(echo "$res" | jq -r '.code // -1')
     if [ "$code" = "0" ]; then
         echo -e "${GREEN}已添加到稍后观看${NC}"
         sleep 2
     else
-        local msg=$(echo "$res" | jq -r '.message // "未知错误"')
+        msg=$(echo "$res" | jq -r '.message // "未知错误"')
         echo -e "${RED}添加失败: $msg${NC}"
     fi
 }
@@ -544,14 +560,22 @@ add_to_watchlater() {
 # ================= 预览处理函数 =================
 preview_video() {
     local line="$1"
-    local pic_url=$(echo "$line" | cut -d$'\t' -f3)
-    local title=$(echo "$line" | cut -d$'\t' -f2)
-    local author=$(echo "$line" | cut -d$'\t' -f4)
-    local views=$(echo "$line" | cut -d$'\t' -f5)
-    local likes=$(echo "$line" | cut -d$'\t' -f6)
-    local favorites=$(echo "$line" | cut -d$'\t' -f7)
-    local pubdate=$(echo "$line" | cut -d$'\t' -f8)
-    local bvid=$(echo "$line" | cut -d$'\t' -f1)
+    local pic_url
+    local title
+    local author
+    local views
+    local likes
+    local favorites
+    local pubdate
+    local bvid
+    pic_url=$(echo "$line" | cut -d$'\t' -f3)
+    title=$(echo "$line" | cut -d$'\t' -f2)
+    author=$(echo "$line" | cut -d$'\t' -f4)
+    views=$(echo "$line" | cut -d$'\t' -f5)
+    likes=$(echo "$line" | cut -d$'\t' -f6)
+    favorites=$(echo "$line" | cut -d$'\t' -f7)
+    pubdate=$(echo "$line" | cut -d$'\t' -f8)
+    bvid=$(echo "$line" | cut -d$'\t' -f1)
 
     echo -e "${YELLOW}标题:${NC} $title"
     echo -e "${BLUE}UP主:${NC} $author"
@@ -572,12 +596,18 @@ preview_video() {
 
 preview_up() {
     local line="$1"
-    local mid=$(echo "$line" | cut -d$'\t' -f1)
-    local uname=$(echo "$line" | cut -d$'\t' -f2)
-    local usign=$(echo "$line" | cut -d$'\t' -f3)
-    local fans=$(echo "$line" | cut -d$'\t' -f4)
-    local videos=$(echo "$line" | cut -d$'\t' -f5)
-    local upic=$(echo "$line" | cut -d$'\t' -f6)
+    local mid
+    mid=$(echo "$line" | cut -d$'\t' -f1)
+    local uname
+    uname=$(echo "$line" | cut -d$'\t' -f2)
+    local usign
+    usign=$(echo "$line" | cut -d$'\t' -f3)
+    local fans
+    fans=$(echo "$line" | cut -d$'\t' -f4)
+    local videos
+    videos=$(echo "$line" | cut -d$'\t' -f5)
+    local upic
+    upic=$(echo "$line" | cut -d$'\t' -f6)
 
     echo -e "${YELLOW}UP主:${NC} $uname"
     echo -e "${BLUE}MID:${NC} $mid"
@@ -639,9 +669,11 @@ check_login() {
 
 do_login() {
     if [ -f "$COOKIE_FILE" ] && [ -s "$COOKIE_FILE" ]; then
-        local res=$(curl_bili "${API_NAV}" 2>/dev/null)
+        local res
+        res=$(curl_bili "${API_NAV}" 2>/dev/null)
         if echo "$res" | jq empty 2>/dev/null; then
-            local is_login=$(echo "$res" | jq -r '.data.isLogin' 2>/dev/null)
+            local is_login
+            is_login=$(echo "$res" | jq -r '.data.isLogin // "false"' 2>/dev/null)
             if [ "$is_login" = "true" ]; then
                 echo -e "${GREEN}已登录，无需重复登录${NC}"
                 return 0
@@ -649,7 +681,7 @@ do_login() {
         fi
     fi
 
-    > "$COOKIE_FILE"
+    : > "$COOKIE_FILE"
     echo "正在获取登录二维码..."
 
     local qr_res
@@ -663,14 +695,17 @@ do_login() {
         return 1
     fi
 
-    local code=$(echo "$qr_res" | jq -r '.code')
+    local code
+    code=$(echo "$qr_res" | jq -r '.code // 1')
     if [ "$code" != "0" ]; then
         echo -e "${RED}错误: 获取二维码失败 (code: $code)${NC}"
         return 1
     fi
 
-    local qr_url=$(echo "$qr_res" | jq -r '.data.url')
-    local qr_key=$(echo "$qr_res" | jq -r '.data.qrcode_key')
+    local qr_url
+    qr_url=$(echo "$qr_res" | jq -r '.data.url // "null"')
+    local qr_key
+    qr_key=$(echo "$qr_res" | jq -r '.data.qrcode_key // "null"')
 
     if [ -z "$qr_url" ] || [ "$qr_url" = "null" ] || [ -z "$qr_key" ]; then
         echo -e "${RED}错误: 无法获取二维码信息${NC}"
@@ -702,8 +737,10 @@ do_login() {
             continue
         fi
 
-        local poll_code=$(echo "$poll_res" | jq -r '.code')
-        local data_code=$(echo "$poll_res" | jq -r '.data.code // 86101')
+        local poll_code
+        poll_code=$(echo "$poll_res" | jq -r '.code // 1')
+        local data_code
+        data_code=$(echo "$poll_res" | jq -r '.data.code // 86101')
 
         if [ "$poll_code" != "0" ]; then
             echo -n "?"
@@ -747,7 +784,8 @@ run_fzf_video_list() {
     esac
 
     # 构造缓存键
-    local cache_key="${mode}_$(echo -n "$query" | md5sum | cut -d' ' -f1)"
+    local cache_key
+    cache_key="${mode}_$(echo -n "$query" | md5sum | cut -d' ' -f1)"
     local cache_file="$CACHE_DIR/$cache_key"
 
     # 获取数据的命令
@@ -777,7 +815,8 @@ run_fzf_video_list() {
         fi
 
         # 过滤掉空行和无效行
-        local filtered_out=$(echo "$out" | awk -F'\t' '{if ($1 != "" && $2 != "") print $0}')
+        local filtered_out
+        filtered_out=$(echo "$out" | awk -F'\t' '{if ($1 != "" && $2 != "") print $0}')
 
         # 运行fzf
         local fzf_out
@@ -803,19 +842,22 @@ run_fzf_video_list() {
         if [ -z "$fzf_out" ]; then break; fi
 
         # 解析输出
-        local key=$(echo "$fzf_out" | head -n1)
-        local selected=$(echo "$fzf_out" | tail -n +2)
+        local key
+        local selected
+        key=$(echo "$fzf_out" | head -n1)
+        selected=$(echo "$fzf_out" | tail -n +2)
 
         if [ "$key" = "$key_play_all" ]; then
             # 播放列表模式
             if [ -s "$cache_file" ]; then
                 echo -e "${GREEN}正在准备播放列表...${NC}"
                 local playlist_file="$CACHE_DIR/playlist.m3u"
-                > "$playlist_file"
+                : > "$playlist_file"
 
                 awk -F'\t' '{print "https://www.bilibili.com/video/" $1}' "$cache_file" > "$playlist_file"
 
-                local count=$(wc -l < "$playlist_file")
+                local count
+                count=$(wc -l < "$playlist_file")
                 echo -e "${CYAN}已加载 $count 个视频到播放列表${NC}"
 
                 # 使用配置的播放器播放
@@ -833,7 +875,8 @@ run_fzf_video_list() {
 
         # 单个播放模式
         if [ -n "$selected" ]; then
-            local bvid=$(echo "$selected" | cut -d$'\t' -f1)
+            local bvid
+            bvid=$(echo "$selected" | cut -d$'\t' -f1)
             echo -e "${GREEN}正在启动 $VIDEO_PLAYER 播放: $bvid ${NC}"
             if [ -f "$COOKIE_FILE" ] && [ -s "$COOKIE_FILE" ]; then
                 $VIDEO_PLAYER $PLAYER_ARGS --ytdl-raw-options="cookies=$COOKIE_FILE" "https://www.bilibili.com/video/$bvid" 2>/dev/null
@@ -852,7 +895,8 @@ run_fzf_up_search() {
     # 搜索UP主
     echo -e "${YELLOW}正在搜索UP主: $keyword${NC}"
 
-    local cache_key="up_search_$(echo -n "$keyword" | md5sum | cut -d' ' -f1)"
+    local cache_key
+    cache_key="up_search_$(echo -n "$keyword" | md5sum | cut -d' ' -f1)"
     local cache_file="$CACHE_DIR/$cache_key"
     local fetch_cmd="fetch_up_search \"$keyword\""
     local full_cmd="bash \"$0\" --fetch-cached \"$cache_key\" $fetch_cmd"
@@ -862,7 +906,8 @@ run_fzf_up_search() {
         out=$(eval "$full_cmd" 2>/dev/null)
 
         if echo "$out" | grep -q "^ERROR:"; then
-            local error_msg=$(echo "$out" | sed 's/^ERROR://')
+            local error_msg
+            error_msg=$(echo "$out" | sed 's/^ERROR://')
             echo -e "${RED}搜索失败: $error_msg${NC}"
             read -p "按回车键继续..."
             return 1
@@ -894,9 +939,12 @@ run_fzf_up_search() {
         if [ -z "$fzf_out" ]; then break; fi
 
         # 获取选中的UP主MID
-        local mid=$(echo "$fzf_out" | cut -d$'\t' -f1)
-        local uname=$(echo "$fzf_out" | cut -d$'\t' -f2)
-        local videos=$(echo "$fzf_out" | cut -d$'\t' -f5)
+        local mid
+        mid=$(echo "$fzf_out" | cut -d$'\t' -f1)
+        local uname
+        uname=$(echo "$fzf_out" | cut -d$'\t' -f2)
+        local videos
+        videos=$(echo "$fzf_out" | cut -d$'\t' -f5)
 
         if [ -n "$mid" ]; then
             # 如果没有视频，不作反应
@@ -912,11 +960,14 @@ run_fzf_up_search() {
 # ================= 菜单界面 =================
 get_login_info() {
     if [ -f "$COOKIE_FILE" ] && [ -s "$COOKIE_FILE" ]; then
-        local res=$(curl_bili "${API_NAV}" 2>/dev/null)
+        local res
+        res=$(curl_bili "${API_NAV}" 2>/dev/null)
         if echo "$res" | jq empty 2>/dev/null; then
-            local is_login=$(echo "$res" | jq -r '.data.isLogin' 2>/dev/null)
+            local is_login
+            is_login=$(echo "$res" | jq -r '.data.isLogin // false' 2>/dev/null)
             if [ "$is_login" = "true" ]; then
-                local uname=$(echo "$res" | jq -r '.data.uname' 2>/dev/null)
+                local uname
+                uname=$(echo "$res" | jq -r '.data.uname // "未知用户"' 2>/dev/null)
                 echo "✓ 已登录: $uname"
                 return 0
             fi
@@ -927,7 +978,8 @@ get_login_info() {
 }
 
 show_menu() {
-    local login_info=$(get_login_info)
+    local login_info
+    login_info=$(get_login_info)
 
     local menu_options=(
         "  个人推荐"
@@ -1036,7 +1088,7 @@ show_settings() {
                 read -n 1 confirm
                 echo
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
-                    rm -rf "$CACHE_BASE_DIR"/*
+                    rm -rf "${CACHE_BASE_DIR:?}"/*
                     echo -e "${GREEN}缓存已清除${NC}"
                 fi
                 read -p "按回车键继续..."
@@ -1104,7 +1156,8 @@ run_main_loop() {
     while true; do
         clear
 
-        local choice=$(show_menu)
+        local choice
+        choice=$(show_menu)
         if [ -z "$choice" ]; then
             exit 0
         fi
