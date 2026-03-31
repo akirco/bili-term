@@ -35,35 +35,13 @@
 
 ## 安装
 
-### 方式一：使用安装脚本
-
 ```bash
-
-curl -sSfL "https://raw.githubusercontent.com/akirco/bili-term/refs/heads/main/install.sh" | bash
-
-#or
-
-git clone https://github.com/akirco/bili-term.git
-cd bili-term
-./install.sh
-```
-
-### 方式二：手动安装
-
-```bash
-# 1. 安装依赖
-
 # Arch
-sudo pacman -S curl jq fzf chafa yt-dlp mpv
+sudo pacman -S curl jq fzf chafa yt-dlp mpv qrencode
 
-# 3. 安装脚本
-mkdir -p ~/.local/bin
-cp bili.sh ~/.local/bin/bili
+curl -o ~/.local/bin/bili -sSfL "https://raw.githubusercontent.com/akirco/bili-term/refs/heads/main/bili.sh" | bash
+
 chmod +x ~/.local/bin/bili
-
-# 4. 添加到 PATH
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
 ```
 
 ## 使用
