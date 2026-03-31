@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 
-# set -Eeo pipefail
-# IFS=$'\n\t'
-# set -e
+set -Euo pipefail
 
 
 # ================= Bili-Term - B站终端客户端 =================
-# 版本: 0.1.0
+# 版本: v2.0.0
 # 作者: akirco
 # 描述: 终端中的B站客户端，支持视频播放、UP主搜索、历史记录等功能
 # ============================================================
@@ -18,16 +16,21 @@
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 
-# 配置文件路径
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
 CONFIG_DIR="$XDG_CONFIG_HOME/bili-term"
 CONFIG_FILE="$CONFIG_DIR/config"
 COOKIE_FILE="$CONFIG_DIR/cookies.txt"
 
 
-# 缓存目录
 CACHE_BASE_DIR="$XDG_CACHE_HOME/bili-term"
-CACHE_DIR="$CACHE_BASE_DIR/$$"  # 使用PID作为临时目录
-LOG_FILE="./bili-term.log"
+CACHE_DIR="$CACHE_BASE_DIR/$$"
 
 mkdir -p "$CACHE_DIR"
 
@@ -43,7 +46,7 @@ DOWNLOAD_DIR=\"$DOWNLOAD_DIR\"
 
 # 播放器设置
 VIDEO_PLAYER=\"mpv\"
-PLAYER_ARGS=\"--no-border --ontop --geometry=960x540+50+50\"
+PLAYER_ARGS=\"--border=no --ontop --geometry=960x540+50+50\"
 
 # 下载设置
 DOWNLOAD_FORMAT=\"bestvideo[height<=1080]+bestaudio/best[height<=1080]\"
@@ -125,18 +128,6 @@ load_config() {
 #                                      初始化                                     #
 # ---------------------------------------------------------------------------- #
 
-# ----------------------------------- 颜色定义 ----------------------------------- #
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-# ORANGE='\033[0;33m'
-# MAGENTA='\033[1;35m'
-NC='\033[0m'
-
-
 load_config
 
 if [ -n "$HTTP_PROXY" ]; then
@@ -201,13 +192,11 @@ format_number() {
     if [ -n "$num" ] && [ "$num" != "null" ]; then
         if [ "$num" -ge 100000000 ]; then
             local yi=$((num / 100000000))
-            local remainder=$((num % 100000000))
-            local decimal=$((remainder * 10 / 100000000))
+            local decimal=$(((num % 100000000) * 10 / 100000000))
             echo "${yi}.${decimal}亿"
         elif [ "$num" -ge 10000 ]; then
             local wan=$((num / 10000))
-            local remainder=$((num % 10000))
-            local decimal=$((remainder * 10 / 10000))
+            local decimal=$(((num % 10000) * 10 / 10000))
             echo "${wan}.${decimal}万"
         else
             echo "$num"
@@ -253,7 +242,9 @@ seconds_to_hms() {
 
 
 log() {
-    echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] \n $1" >> "$LOG_FILE"
+    if [ "$DEBUG" = "true" ]; then
+        printf "%s\n" "$1" >&2
+    fi
 }
 
 startup(){
@@ -287,7 +278,7 @@ startup(){
            ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
 
             Bilibili Terminal Client
-                  Version 0.1.0
+                  Version v2.0.0
 EOF
     echo -e "${NC}"
 }
@@ -349,8 +340,8 @@ show_qr() {
 # API URL常量
 # API_VIDEO_DETAIL="https://api.bilibili.com/x/web-interface/view"
 # API_UP_DETAIL="https://api.bilibili.com/x/space/acc/info"
-# API_UP_VIDEOS="https://api.bilibili.com/x/space/arc/search"
-# API_UP_SEARCH="https://api.bilibili.com/x/web-interface/search/type"
+API_UP_VIDEOS="https://api.bilibili.com/x/space/arc/search"
+API_UP_SEARCH="https://api.bilibili.com/x/web-interface/search/type"
 API_RECOMMEND="https://api.bilibili.com/x/web-interface/index/top/feed/rcmd"
 API_POPULAR="https://api.bilibili.com/x/web-interface/popular"
 API_VIDEO_SEARCH="https://api.bilibili.com/x/web-interface/search/all/v2"
@@ -454,6 +445,7 @@ jqerr() {
         echo "ERROR:$message"
         return 1
     fi
+    # 成功时无输出
     return 0
 }
 
@@ -462,8 +454,20 @@ jqerr() {
 fetch_recommend() {
     local page_size="${RECOMMEND_PAGE_SIZE:-20}"
     local res
+    local retry=0
+    local max_retry=3
+    while [ $retry -lt $max_retry ]; do
+    log "Fetching recommend videos..."
     res=$(curl_bili "${API_RECOMMEND}?ps=${page_size}")
-    echo "$res" | jq empty 2>/dev/null || return 1
+        if echo "$res" | jq empty 2>/dev/null; then
+            break
+        fi
+        retry=$((retry + 1))
+        sleep 1
+    done
+    if [ $retry -eq $max_retry ]; then
+        return 1
+    fi
     jqx_recommend "$res"
 }
 
@@ -472,6 +476,7 @@ fetch_recommend() {
 fetch_popular() {
     local page_size="${POPULAR_PAGE_SIZE:-20}"
     local res
+    log "Fetching popular videos..."
     res=$(curl_bili "${API_POPULAR}?ps=${page_size}")
     echo "$res" | jq empty 2>/dev/null || return 1
     jqx_popular "$res"
@@ -485,8 +490,8 @@ fetch_videos() {
     keyword=$(urlencode "$1")
     local page_size="${SEARCH_PAGE_SIZE:-20}"
 
+    log "Searching videos for keyword: $keyword..."
     res=$(curl_bili "${API_VIDEO_SEARCH}?keyword=${keyword}&page=1&page_size=${page_size}")
-    echo "${res}" > "search.json"
     echo "$res" | jq empty 2>/dev/null || return 1
     jqx_videos "$res"
 }
@@ -519,6 +524,33 @@ fetch_watchlater() {
     jqx_watchlater "$res"
 }
 
+# --------------------------------- 搜索UP主 --------------------------------- #
+fetch_up_search() {
+    local keyword
+    keyword=$(urlencode "$1")
+    local res
+    log "Searching UP for keyword: $keyword..."
+    res=$(curl_bili "${API_UP_SEARCH}?search_type=bili_user&keyword=${keyword}&page=1&page_size=20")
+    echo "$res" | jq empty 2>/dev/null || { echo -e "${RED}搜索UP主失败${NC}"; return 1; }
+    jqx_up_search "$res"
+}
+
+# --------------------------------- 获取UP主视频列表 --------------------------------- #
+fetch_up_videos() {
+    local mid="$1"
+    local page="${2:-1}"
+    local page_size="${UP_DETAIL_PAGE_SIZE:-30}"
+    local res
+    if [ -z "$mid" ]; then
+        echo -e "${RED}缺少UP主ID${NC}"
+        return 1
+    fi
+    log "Fetching videos for UP: $mid..."
+    res=$(curl_bili "${API_UP_VIDEOS}?mid=${mid}&pn=${page}&ps=${page_size}&order=pubdate")
+    echo "$res" | jq empty 2>/dev/null || { echo -e "${RED}获取UP主视频失败${NC}"; return 1; }
+    jqx_up_videos "$res"
+}
+
 # --------------------------------- 添加到稍后观看 --------------------------------- #
 add_to_watchlater() {
     local bvid="$1"
@@ -536,17 +568,17 @@ add_to_watchlater() {
         return 1
     fi
 
+    chmod 600 "$COOKIE_FILE" 2>/dev/null
+
     csrf=$(grep "bili_jct" "$COOKIE_FILE" | awk '{print $7}' | head -1)
     if [ -z "$csrf" ]; then
         csrf=$(grep "bili_jct" "$COOKIE_FILE" | cut -f5 | head -1)
     fi
 
-    res=$(curl -s -X POST \
-        -b "$COOKIE_FILE" -c "$COOKIE_FILE" \
-        -H "User-Agent: $USER_AGENT" \
+    res=$(curl_bili "https://api.bilibili.com/x/v2/history/toview/add" \
+        -X POST \
         -H "Content-Type: application/x-www-form-urlencoded" \
-        -d "bvid=${bvid}&csrf=${csrf}" \
-        "https://api.bilibili.com/x/v2/history/toview/add")
+        -d "bvid=${bvid}&csrf=${csrf}")
     code=$(echo "$res" | jq -r '.code // -1')
     if [ "$code" = "0" ]; then
         echo -e "${GREEN}已添加到稍后观看${NC}"
@@ -587,8 +619,18 @@ preview_video() {
     echo ""
 
     if [ "$ENABLE_PREVIEW" = "true" ] && [ -n "$pic_url" ] && [ "$pic_url" != "null" ]; then
-        curl -s -H "User-Agent: $USER_AGENT" "$pic_url" 2>/dev/null | \
-        chafa -s "${FZF_PREVIEW_COLUMNS:-80}x${FZF_PREVIEW_LINES:-20}" -
+        local cache_key
+        cache_key=$(echo -n "$pic_url" | md5sum | cut -d' ' -f1)
+        local image_cache="$CACHE_DIR/images/$cache_key.jpg"
+        mkdir -p "$CACHE_DIR/images"
+        if [ ! -f "$image_cache" ]; then
+            curl -s -H "User-Agent: $USER_AGENT" "$pic_url" -o "$image_cache" 2>/dev/null
+        fi
+        if [ -f "$image_cache" ]; then
+            chafa -s "${FZF_PREVIEW_COLUMNS:-80}x${FZF_PREVIEW_LINES:-20}" "$image_cache"
+        else
+            echo "无封面"
+        fi
     else
         echo "无封面"
     fi
@@ -682,6 +724,7 @@ do_login() {
     fi
 
     : > "$COOKIE_FILE"
+    chmod 600 "$COOKIE_FILE"
     echo "正在获取登录二维码..."
 
     local qr_res
@@ -765,21 +808,37 @@ do_login() {
 
 # ================= FZF 界面函数 =================
 
+_fetch_data_by_mode() {
+    local mode="$1"
+    local query="$2"
+
+    case $mode in
+        rec)        fetch_recommend ;;
+        popular)    fetch_popular ;;
+        search)     fetch_videos "$query" ;;
+        personal)   fetch_personal_recommend ;;
+        history)    fetch_history ;;
+        watchlater) fetch_watchlater ;;
+        up_videos)  fetch_up_videos "$query" ;;
+        up_search)  fetch_up_search "$query" ;;
+        *) return 1 ;;
+    esac
+}
+
 run_fzf_video_list() {
     local mode="$1"
     local query="$2"
 
-    local raw_cmd
     local prompt
 
     case $mode in
-        rec)        raw_cmd="fetch_recommend"; prompt="推荐视频" ;;
-        popular)    raw_cmd="fetch_popular"; prompt="热门视频" ;;
-        search)     raw_cmd="fetch_videos \"$query\""; prompt="搜索: $query" ;;
-        personal)   raw_cmd="fetch_personal_recommend"; prompt="为你推荐" ;;
-        history)    raw_cmd="fetch_history"; prompt="历史记录" ;;
-        watchlater) raw_cmd="fetch_watchlater"; prompt="稍后观看" ;;
-        up_videos)  raw_cmd="fetch_up_videos \"$query\""; prompt="UP主视频" ;;
+        rec)        prompt="推荐视频" ;;
+        popular)    prompt="热门视频" ;;
+        search)     prompt="搜索: $query" ;;
+        personal)   prompt="为你推荐" ;;
+        history)    prompt="历史记录" ;;
+        watchlater) prompt="稍后观看" ;;
+        up_videos)  prompt="UP主视频" ;;
         *) return 1 ;;
     esac
 
@@ -787,9 +846,6 @@ run_fzf_video_list() {
     local cache_key
     cache_key="${mode}_$(echo -n "$query" | md5sum | cut -d' ' -f1)"
     local cache_file="$CACHE_DIR/$cache_key"
-
-    # 获取数据的命令
-    local fetch_cmd="bash \"$0\" --fetch-cached \"$cache_key\" $raw_cmd"
 
     # 快捷键设置
     local key_play="${KEY_PLAY:-enter}"
@@ -804,7 +860,10 @@ run_fzf_video_list() {
     if [ -f "$cache_file" ] && [ -s "$cache_file" ]; then
         out=$(cat "$cache_file")
     else
-        out=$(eval "$fetch_cmd" 2>/dev/null)
+        out=$(_fetch_data_by_mode "$mode" "$query" 2>/dev/null)
+        if [ -n "$out" ]; then
+            echo "$out" > "$cache_file"
+        fi
     fi
 
     while true; do
@@ -833,22 +892,19 @@ run_fzf_video_list() {
             --preview-window="right:${PREVIEW_WIDTH:-50%}:wrap" \
             --expect="$key_play_all" \
             --bind '?:change-preview-window:hidden|right' \
-            --bind "$key_refresh:execute-silent(rm -f \"$cache_file\")+reload(eval $fetch_cmd)" \
+            --bind "$key_refresh:execute-silent(rm -f \"$cache_file\")+reload(bash \"$0\" --fetch-mode \"$mode\" \"$query\")" \
             --bind "$key_download:execute(echo -e '${YELLOW}正在下载...${NC}'; yt-dlp --cookies \"$COOKIE_FILE\" -o \"$DOWNLOAD_DIR/%(title)s.%(ext)s\" 'https://www.bilibili.com/video/{1}'; read -p '按回车键继续...')" \
             --bind "$key_watchlater:execute(echo -e '${YELLOW}正在添加到稍后观看...${NC}'; bash \"$0\" --add-watchlater {1}; read -p '按回车键继续...')" \
             --bind "$key_play:accept" 2>/dev/null)
 
-        # 处理 FZF 退出情况
         if [ -z "$fzf_out" ]; then break; fi
 
-        # 解析输出
         local key
         local selected
         key=$(echo "$fzf_out" | head -n1)
         selected=$(echo "$fzf_out" | tail -n +2)
 
         if [ "$key" = "$key_play_all" ]; then
-            # 播放列表模式
             if [ -s "$cache_file" ]; then
                 echo -e "${GREEN}正在准备播放列表...${NC}"
                 local playlist_file="$CACHE_DIR/playlist.m3u"
@@ -860,7 +916,6 @@ run_fzf_video_list() {
                 count=$(wc -l < "$playlist_file")
                 echo -e "${CYAN}已加载 $count 个视频到播放列表${NC}"
 
-                # 使用配置的播放器播放
                 if [ -f "$COOKIE_FILE" ] && [ -s "$COOKIE_FILE" ]; then
                     $VIDEO_PLAYER $PLAYER_ARGS --playlist="$playlist_file" --ytdl-raw-options="cookies=$COOKIE_FILE"
                 else
@@ -898,12 +953,17 @@ run_fzf_up_search() {
     local cache_key
     cache_key="up_search_$(echo -n "$keyword" | md5sum | cut -d' ' -f1)"
     local cache_file="$CACHE_DIR/$cache_key"
-    local fetch_cmd="fetch_up_search \"$keyword\""
-    local full_cmd="bash \"$0\" --fetch-cached \"$cache_key\" $fetch_cmd"
 
     while true; do
         local out
-        out=$(eval "$full_cmd" 2>/dev/null)
+        if [ -f "$cache_file" ] && [ -s "$cache_file" ]; then
+            out=$(cat "$cache_file")
+        else
+            out=$(fetch_up_search "$keyword" 2>/dev/null)
+            if [ -n "$out" ]; then
+                echo "$out" > "$cache_file"
+            fi
+        fi
 
         if echo "$out" | grep -q "^ERROR:"; then
             local error_msg
@@ -933,7 +993,7 @@ run_fzf_up_search() {
             --preview "bash \"$0\" --preview up {}" \
             --preview-window="right:${PREVIEW_WIDTH:-40%}:wrap" \
             --bind '?:change-preview-window:hidden|bottom|hidden|right' \
-            --bind "ctrl-r:execute-silent(rm -f \"$cache_file\")+reload($full_cmd)" \
+            --bind "ctrl-r:execute-silent(rm -f \"$cache_file\")+reload(bash \"$0\" --fetch-mode up_search \"$keyword\")" \
             --bind "enter:accept" 2>/dev/null)
 
         if [ -z "$fzf_out" ]; then break; fi
@@ -1167,38 +1227,13 @@ run_main_loop() {
             *热门视频*) run_fzf_video_list "popular" ;;
             *搜索视频*) search_video ;;
             *搜索UP主*) search_up ;;
-            *个人推荐*)
-                if check_login; then
-                    run_fzf_video_list "personal"
-                else
-                    echo -e "${RED}需要登录才能查看个人推荐${NC}"
-                    sleep 1
-                fi
-                ;;
-            *历史记录*)
-                if check_login; then
-                    run_fzf_video_list "history"
-                else
-                    echo -e "${RED}需要登录才能查看历史记录${NC}"
-                    sleep 1
-                fi
-                ;;
-            *稍后观看*)
-                if check_login; then
-                    run_fzf_video_list "watchlater"
-                else
-                    echo -e "${RED}需要登录才能查看稍后观看${NC}"
-                    sleep 1
-                fi
-                ;;
+            *个人推荐*) run_fzf_video_list "personal" ;;
+            *历史记录*) run_fzf_video_list "history" ;;
+            *稍后观看*) run_fzf_video_list "watchlater" ;;
             *配置管理*) show_settings ;;
             *扫码登录*)
-                if check_login; then
-                    echo -e "${RED}已登录...${NC}"
+                    do_login;
                     read -p "按回车键继续..."
-                else
-                    do_login; read -p "按回车键继续..."
-                fi
              ;;
             *关于帮助*) show_about ;;
             *退出程序*)
@@ -1210,17 +1245,25 @@ run_main_loop() {
 }
 
 # ================= CLI 模式处理 =================
-if [ "$1" = "--fetch-cached" ]; then
+if [ "$1" = "--fetch-mode" ]; then
     mode="$2"
-    shift 2
-    cache_file="$CACHE_DIR/$mode"
+    query="$3"
+    _fetch_data_by_mode "$mode" "$query"
+    exit 0
+fi
 
-    # 如果缓存不存在或为空，执行命令并写入缓存
-    if [ ! -s "$cache_file" ]; then
-        "$@" > "$cache_file" 2>/dev/null
+if [ "$1" = "--fetch-cached" ]; then
+    cache_key="$2"
+    cache_file="$CACHE_DIR/$cache_key"
+    mode="${cache_key%%_*}"
+    query="${cache_key#*_}"
+    if [ "$query" = "$mode" ]; then
+        query=""
     fi
 
-    # 输出缓存内容
+    if [ ! -s "$cache_file" ]; then
+        _fetch_data_by_mode "$mode" "$query" > "$cache_file" 2>/dev/null
+    fi
     cat "$cache_file" 2>/dev/null
     exit 0
 fi
@@ -1254,7 +1297,7 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
 fi
 
 if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
-    echo "Bili-Term v0.1.0"
+    echo "Bili-Term v2.0.0"
     exit 0
 fi
 
@@ -1275,6 +1318,6 @@ check_dependency
 
 startup
 
-sleep 1
+sleep 0.5
 
 run_main_loop
