@@ -14,24 +14,24 @@ readonly BILI_TERM_NAME="Bili-Term"
 readonly BILI_TERM_GITHUB="https://github.com/akirco/bili-term"
 
 # 菜单项常量
-readonly MENU_PERSONAL_RECOMMEND="   个人推荐"
-readonly MENU_RECOMMEND="   推荐视频"
-readonly MENU_POPULAR="   热门视频"
-readonly MENU_SEARCH_VIDEO="   搜索视频"
-readonly MENU_SEARCH_UP="   搜索UP主"
-readonly MENU_HISTORY="   历史记录"
-readonly MENU_WATCHLATER="   稍后观看"
-readonly MENU_SETTINGS="   配置管理"
-readonly MENU_LOGIN="   扫码登录"
-readonly MENU_ABOUT="   关于帮助"
-readonly MENU_EXIT="   退出程序"
+readonly MENU_PERSONAL_RECOMMEND="    个人推荐"
+readonly MENU_RECOMMEND="    推荐视频"
+readonly MENU_POPULAR="    热门视频"
+readonly MENU_SEARCH_VIDEO="    搜索视频"
+readonly MENU_SEARCH_UP="    搜索UP主"
+readonly MENU_HISTORY="    历史记录"
+readonly MENU_WATCHLATER="    稍后观看"
+readonly MENU_SETTINGS="    配置管理"
+readonly MENU_LOGIN="    扫码登录"
+readonly MENU_ABOUT="    关于帮助"
+readonly MENU_EXIT="    退出程序"
 
-readonly SETTINGS_OPEN_DIR="  打开配置目录"
-readonly SETTINGS_EDIT_CONFIG="  编辑配置文件"
-readonly SETTINGS_RESET_CONFIG="  重置配置文件"
-readonly SETTINGS_CLEAR_CACHE="  清除缓存文件"
-readonly SETTINGS_SYS_INFO="  查看系统信息"
-readonly SETTINGS_BACK=" 󰌑 返回主菜单"
+readonly SETTINGS_OPEN_DIR="   打开配置目录"
+readonly SETTINGS_EDIT_CONFIG="   编辑配置文件"
+readonly SETTINGS_RESET_CONFIG="   重置配置文件"
+readonly SETTINGS_CLEAR_CACHE="   清除缓存文件"
+readonly SETTINGS_SYS_INFO="   查看系统信息"
+readonly SETTINGS_BACK=" 󰌑  返回主菜单"
 
 # ---------------------------------------------------------------------------- #
 #                                     配置相关                                   #
@@ -55,9 +55,12 @@ COOKIE_FILE="$CONFIG_DIR/cookies.txt"
 CACHE_BASE_DIR="$XDG_CACHE_HOME/bili-term"
 CACHE_DIR="$CACHE_BASE_DIR/$$"
 
+SIZES="$(tput lines)"
+
+
 mkdir -p "$CACHE_DIR"
 
-DOWNLOAD_DIR="$HOME/Videos/bilibili/downloads"
+DOWNLOAD_DIR="$HOME/Videos/bilibili"
 mkdir -p "$DOWNLOAD_DIR"
 
 DEFAULT_CONFIG="# Bili-Term 配置文件
@@ -91,11 +94,11 @@ API_TIMEOUT=10
 API_RETRY=2
 
 # 搜索设置
-SEARCH_PAGE_SIZE=20
+SEARCH_PAGE_SIZE=\"$SIZES\"
 SEARCH_MAX_RESULTS=100
-RECOMMEND_PAGE_SIZE=20
-POPULAR_PAGE_SIZE=20
-PERSONAL_PAGE_SIZE=20
+RECOMMEND_PAGE_SIZE=\"$SIZES\"
+POPULAR_PAGE_SIZE=\"$SIZES\"
+PERSONAL_PAGE_SIZE=\"$SIZES\"
 VIDEO_DETAIL_PAGE_SIZE=1
 UP_DETAIL_PAGE_SIZE=1
 
@@ -271,7 +274,6 @@ log() {
 	fi
 }
 
-# 验证JSON响应是否有效
 validate_json() {
 	echo "$1" | jq empty 2>/dev/null
 }
@@ -281,7 +283,6 @@ cache_key_hash() {
 	printf '%s' "$input" | cksum | cut -d' ' -f1
 }
 
-# 检查缓存是否过期
 is_cache_valid() {
 	local cache_file="$1"
 	local duration="${2:-${CACHE_DURATION:-3600}}"
@@ -311,10 +312,10 @@ startup() {
 	padding=$(printf "%*s" "$left_padding" "")
 	vpadding=$(printf "%*s" "$top_padding" "")
 
-	# 顶部占位
 	echo "$vpadding"
 	echo -e "${CYAN}"
 	cat <<"EOF" | sed "s/^/$padding/"
+
            ██████╗ ██╗██╗     ██╗
            ██╔══██╗██║██║     ██║
            ██████╔╝██║██║     ██║
@@ -330,7 +331,6 @@ startup() {
            ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
 
              Bilibili Terminal Client
-                   Version $BILI_TERM_VERSION
 EOF
 	echo -e "${NC}"
 }
@@ -401,7 +401,6 @@ API_NAV="https://api.bilibili.com/x/web-interface/nav"
 API_LOGIN_QR_GENERATE="https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
 API_LOGIN_QR_POLL="https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
 
-# jq解析函数
 jqx_video_detail() {
 	local res="$1"
 	echo "$res" | jq -r '
@@ -433,7 +432,6 @@ jqx_up_search() {
 	echo "$res" | jq -r '.data.result[] | "\(.mid)\t\(.uname)\t\(.usign // "")\t\(.fans // 0)\t\(.videos // 0)\t\(.upic // "")"' 2>/dev/null | sed 's#^//#https://#'
 }
 
-# jq解析函数 - 推荐/个人推荐（两者API响应格式相同，合并处理）
 jqx_recommend() {
 	local res="$1"
 	echo "$res" | jq -r '
