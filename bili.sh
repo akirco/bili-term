@@ -154,8 +154,8 @@ KEY_REFRESH=\"$DEFAULT_KEY_REFRESH\"
 KEY_BACK=\"$DEFAULT_KEY_BACK\"
 
 # 代理设置（如需）
-# HTTP_PROXY=\"http://127.0.0.1:1080\"
-# HTTPS_PROXY=\"http://127.0.0.1:1080\"
+# HTTP_PROXY=\"http://127.0.0.1:7890\"
+# HTTPS_PROXY=\"http://127.0.0.1:7890\"
 "
 
 # ===========================================
@@ -1075,7 +1075,7 @@ show_menu() {
                 --border \
                 --no-input \
                 --prompt="❯ " \
-                --pointer='▓' \
+                --pointer='❯' \
                 --header="BiliTerm  $login_info" \
                 --height=100% \
                 --layout=reverse \
