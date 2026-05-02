@@ -2,11 +2,6 @@
 
 终端中的 Bilibili 客户端 | Terminal Bilibili Client
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Bash-5.0+-green.svg" alt="Bash">
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
-</p>
-
 ## 预览
 
 ![](./screenshot.png)
@@ -33,13 +28,18 @@
 | `mpv`    | 视频播放器   |
 | `yt-dlp` | 视频下载     |
 
+## 依赖
+
+```sh
+# Arch
+sudo pacman -S curl jq fzf chafa yt-dlp mpv qrencode
+```
+
 ## 安装
 
 ```bash
-# Arch
-sudo pacman -S curl jq fzf chafa yt-dlp mpv qrencode
 
-curl -o ~/.local/bin/bili -sSfL "https://raw.githubusercontent.com/akirco/bili-term/refs/heads/main/bili.sh" | bash
+curl -o ~/.local/bin/bili -sSfL "https://raw.githubusercontent.com/akirco/bili-term/refs/heads/main/bili.sh"
 
 chmod +x ~/.local/bin/bili
 ```
@@ -132,15 +132,6 @@ DOWNLOAD_DIR="$HOME/Videos/bilibili/downloads"
 | `ENABLE_PREVIEW` | 启用封面预览 | `true`   |
 | `FZF_COLOR`      | fzf 颜色方案 | 内置方案 |
 
-## 故障排除
-
-### 412 错误
-
-如果遇到 API 412 错误，可能需要：
-
-1. 登录账号后重试
-2. 检查 cookie 是否有效
-
 ### 封面不显示
 
 确保已安装 `chafa`：
@@ -156,6 +147,10 @@ sudo pacman -S chafa
 1. 确保 mpv 已安装
 2. 检查 cookie 文件是否有效
 3. 尝试添加 `--ytdl-raw-options="cookies=cookie.txt"`
+
+### API REF
+
+- [bilibili-API-collect](https://github.com/pskdje/bilibili-API-collect)
 
 ## License
 
