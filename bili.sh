@@ -35,8 +35,9 @@ readonly SETTINGS_CLEAR_CACHE="    清除缓存文件"
 readonly SETTINGS_SYS_INFO="    查看系统信息"
 readonly SETTINGS_BACK=" 󰌑  返回主菜单"
 
-readonly API_UP_VIDEOS="https://api.bilibili.com/x/space/arc_search"
-readonly API_UP_SEARCH="https://api.bilibili.com/x/web-interface/search/type"
+
+readonly API_UP_VIDEOS="https://api.bilibili.com/x/space/wbi/arc/search"
+readonly API_UP_SEARCH="https://api.bilibili.com/x/web-interface/wbi/search/type"
 readonly API_RECOMMEND="https://api.bilibili.com/x/web-interface/index/top/feed/rcmd"
 readonly API_POPULAR="https://api.bilibili.com/x/web-interface/popular"
 readonly API_VIDEO_SEARCH="https://api.bilibili.com/x/web-interface/search/all/v2"
@@ -399,7 +400,7 @@ jqx_up_videos() {
     local res="$1"
     echo "$res" | jq -r '
         .data.list.vlist[] | "\(.bvid)\t\(.title)\t\(.pic)\t\(.author)\t\(.play)\t\(.comment)\t\(.review)\t\(.created)"
-    ' 2>/dev/null | sed 's/http:/https:/g'
+    ' 2>/dev/null | sed -e 's#\t//#\thttps://#g' -e 's#^//#https://#' -e 's/http:/https:/g'
 }
 
 jqx_up_videos_total() {
@@ -409,7 +410,7 @@ jqx_up_videos_total() {
 
 jqx_up_search() {
     local res="$1"
-    echo "$res" | jq -r '.data.result[] | "\(.mid)\t\(.uname)\t\(.usign // "")\t\(.fans // 0)\t\(.videos // 0)\t\(.upic // "")"' 2>/dev/null | sed 's#^//#https://#' | grep -v "^$"
+    echo "$res" | jq -r '.data.result[] | "\(.mid)\t\(.uname)\t\(.usign // "")\t\(.fans // 0)\t\(.videos // 0)\t\(.upic // "")"' 2>/dev/null | sed -e 's#\t//#\thttps://#g' -e 's#^//#https://#' | grep -v "^$"
 }
 
 jqx_videos() {
@@ -461,6 +462,76 @@ jqerr() {
     fi
     return 0
 }
+
+
+
+# ---------------------------------------------------------------------------- #
+#                                   WBI 签名                                      #
+# ---------------------------------------------------------------------------- #
+
+readonly -a _MIXIN_KEY_ENC_TAB=(46 47 18 2 53 8 23 32 15 50 10 31 58 3 45 35 27 43 5 49 33 9 42 19 29 28 14 39 12 38 41 13 37 48 7 16 24 55 40 61 26 17 0 1 60 51 30 4 22 25 54 21 56 59 6 63 57 62 11 36 20 34 44 52)
+_WBI_MIXIN_KEY=""
+_WBI_EXPIRY=0
+
+# ---- 获取 WBI 签名密钥（每日更替，缓存 1 小时）---- #
+_wbi_fetch_keys() {
+    local now
+    now=$(date +%s)
+    if [ "$now" -lt "$_WBI_EXPIRY" ] && [ -n "$_WBI_MIXIN_KEY" ]; then
+        return 0
+    fi
+    local res img_url sub_url img_key sub_key raw mkey i
+    res=$(curl_bili "https://api.bilibili.com/x/web-interface/nav")
+    img_url=$(echo "$res" | jq -r '.data.wbi_img.img_url // ""')
+    sub_url=$(echo "$res" | jq -r '.data.wbi_img.sub_url // ""')
+    [ -z "$img_url" ] && { echo "ERROR:获取WBI密钥失败" >&2; return 1; }
+    img_key=$(basename "${img_url%.png}")
+    sub_key=$(basename "${sub_url%.png}")
+    raw="${img_key}${sub_key}"
+    mkey=""
+    for i in "${_MIXIN_KEY_ENC_TAB[@]}"; do mkey="${mkey}${raw:$i:1}"; done
+    _WBI_MIXIN_KEY="${mkey:0:32}"
+    _WBI_EXPIRY=$((now + 3600))
+}
+
+# ---- 按 key 排序后 URL 编码拼接，与 _WBI_MIXIN_KEY 取 MD5 生成 w_rid ---- #
+# 用法: wbi_sign key1 value1 [key2 value2 ...]
+# 输出: key1=val1&key2=val2&wts=...&w_rid=...
+wbi_sign() {
+    _wbi_fetch_keys || return 1
+    local wts
+    wts=$(date +%s)
+    # 拍平成 key1 val1 key2 val2 ... wts wts
+    local params=("$@" "wts" "$wts")
+    # 提取去重 key
+    local keys=() k v i
+    for ((i=0; i<${#params[@]}; i+=2)); do
+        k="${params[$i]}"
+        for v in "${keys[@]}"; do [ "$v" = "$k" ] && continue 2; done
+        keys+=("$k")
+    done
+    # key 排序
+    local sorted
+    sorted=$(printf '%s\n' "${keys[@]}" | sort)
+    # 构建签名串（URL 编码值）
+    local sign_str="" ev
+    while IFS= read -r k; do
+        for ((i=0; i<${#params[@]}; i+=2)); do
+            [ "${params[$i]}" != "$k" ] && continue
+            v="${params[$((i+1))]}"
+            ev=$(urlencode "$v")
+            [ -n "$sign_str" ] && sign_str+="&"
+            sign_str+="${k}=${ev}"
+            break
+        done
+    done <<< "$sorted"
+    local w_rid
+    w_rid=$(printf '%s%s' "$sign_str" "$_WBI_MIXIN_KEY" | md5sum 2>/dev/null | cut -d' ' -f1)
+    [ -z "$w_rid" ] && w_rid=$(printf '%s%s' "$sign_str" "$_WBI_MIXIN_KEY" | md5 2>/dev/null | cut -d' ' -f1)
+    [ -z "$w_rid" ] && { echo "ERROR:需要 md5sum 或 md5 命令" >&2; return 1; }
+    echo "${sign_str}&w_rid=${w_rid}"
+}
+
 
 # ===========================================
 #  8: 数据获取（fetch 函数）
@@ -531,6 +602,40 @@ _fetch_api() {
     "$jqx_func" "$res"
 }
 
+fetch_api_get() {
+    local url="$1"
+    local jqx_func="$2"
+    local err_msg="${3:-请求失败}"
+    local res
+    res=$(curl_bili "$url")
+    local code_msg
+    code_msg=$(echo "$res" | jq -r '(.code | tostring) + "|" + (.message // "未知错误")' 2>/dev/null) || {
+        echo "ERROR:${err_msg}"
+        return 1
+    }
+    local code="${code_msg%%|*}"
+    local message="${code_msg#*|}"
+    if [ "$code" != "0" ]; then
+        echo "ERROR:${err_msg}: $message"
+        return 1
+    fi
+    if [ "${BILI_OUTPUT:-tsv}" = "json" ]; then
+        echo "$res" | jq .
+    else
+        "$jqx_func" "$res"
+    fi
+}
+
+fetch_api_get_wbi() {
+    local url="$1"
+    local jqx_func="$2"
+    local err_msg="${3:-请求失败}"
+    shift 3
+    local signed
+    signed=$(wbi_sign "$@") || return 1
+    fetch_api_get "${url}?${signed}" "$jqx_func" "$err_msg"
+}
+
 fetch_history() {
     _fetch_api "${API_HISTORY}?ps=20" "jqx_history" "获取历史记录失败"
 }
@@ -541,19 +646,21 @@ fetch_watchlater() {
 
 fetch_up_search() {
     local keyword="$1"
+    local page_size="${2:-20}"
     keyword=$(urlencode "$keyword")
-    _fetch_api "${API_UP_SEARCH}?search_type=bili_user&keyword=${keyword}&page=1&page_size=20" "jqx_up_search" "搜索UP主失败"
+    fetch_api_get "${API_UP_SEARCH}?search_type=bili_user&keyword=${keyword}&page=1&page_size=${page_size}" "jqx_up_search" "搜索UP主失败"
 }
 
 fetch_up_videos() {
     local mid="$1"
     local page="${2:-1}"
-    local page_size="${UP_DETAIL_PAGE_SIZE:-30}"
+    local page_size="${3:-20}"
     if [ -z "$mid" ]; then
-        echo -e "${RED}缺少UP主ID${NC}"
+        echo -e "${RED:-}缺少UP主ID${NC:-}"
         return 1
     fi
-    _fetch_api "${API_UP_VIDEOS}?mid=${mid}&pn=${page}&ps=${page_size}&order=pubdate" "jqx_up_videos" "获取UP主视频失败"
+    fetch_api_get_wbi "$API_UP_VIDEOS" "jqx_up_videos" "获取UP主视频失败" \
+        "mid" "$mid" "pn" "$page" "ps" "$page_size" "order" "pubdate"
 }
 
 add_to_watchlater() {

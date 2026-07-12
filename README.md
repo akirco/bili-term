@@ -1,4 +1,4 @@
-# Bili-Term
+# Bili-Term (Currently being rewritten in Rust.)
 
 终端中的 Bilibili 客户端 | Terminal Bilibili Client
 
